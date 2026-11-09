@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Non-Convex Optimization Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Layout: handout-style header, numbered tabs; each lab is plot on the left, controls and readout on the right, predict-then-run cards below. */
+  --paper: #f3f6f6;
+  --panel: #ffffff;
+  --ink: #14232b;
+  --muted: #56666d;
+  --line: #d3dcdf;
+  --accent: #c4501b;
+  --accent-ink: #ffffff;
+  --teal: #1d6b74;
+  --plum: #76378a;
+  --sand: #a87a1c;
+  --good: #2c7a4b;
+  --bad: #b3261e;
+  --map-lo: #2a6e78;
+  --map-mid: #a9cdc7;
+  --map-hi: #f4eedf;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", Arial, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+  --font-math: "IBM Plex Serif", Cambria, "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e1619; --panel: #152126; --ink: #e2ebee; --muted: #94a5ac; --line: #2b3b42;
+    --accent: #ff8a52; --accent-ink: #1a0d06; --teal: #56b8c2; --plum: #c68bdb; --sand: #d9b25a;
+    --good: #5cc488; --bad: #ff7b72; --map-lo: #0f3a43; --map-mid: #2c6a6c; --map-hi: #c7b88e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e1619; --panel: #152126; --ink: #e2ebee; --muted: #94a5ac; --line: #2b3b42;
+  --accent: #ff8a52; --accent-ink: #1a0d06; --teal: #56b8c2; --plum: #c68bdb; --sand: #d9b25a;
+  --good: #5cc488; --bad: #ff7b72; --map-lo: #0f3a43; --map-mid: #2c6a6c; --map-hi: #c7b88e;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 15.5px; line-height: 1.5; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px 64px; }
+header.top { padding: 28px 0 14px; display: grid; gap: 6px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .04em; color: var(--muted); text-transform: uppercase; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(28px, 4vw, 38px); line-height: 1.1; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 24px; margin: 0; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-weight: 600; font-size: 17px; margin: 0; }
+p { margin: 0; }
+.lede { max-width: 72ch; color: var(--muted); }
+nav.tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 0 18px; border-bottom: 1px solid var(--line); margin-bottom: 22px; position: sticky; top: 0; background: var(--paper); z-index: 5; }
+nav.tabs button { font: 500 14px var(--font-body); color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; }
+nav.tabs button .n { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+nav.tabs button[aria-selected="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+nav.tabs button[aria-selected="true"] .n { color: var(--paper); opacity: .75; }
+button:focus-visible, input:focus-visible, select:focus-visible, label.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 600px) { nav.tabs { flex-wrap: nowrap; overflow-x: auto; position: static; } nav.tabs button { flex: none; } }
+section.tab { display: none; }
+section.tab.on { display: grid; gap: 20px; }
+.intro { display: grid; gap: 6px; max-width: 80ch; }
+.intro .src { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.lab { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 880px) { .lab { grid-template-columns: 1fr; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.plotcard { padding: 10px; display: grid; gap: 6px; }
+canvas { width: 100%; display: block; touch-action: manipulation; }
+canvas.wide { aspect-ratio: 16 / 10; cursor: crosshair; }
+canvas.short { aspect-ratio: 16 / 6; }
+.caption { font-size: 13px; color: var(--muted); padding: 0 6px 4px; }
+.controls { display: grid; gap: 14px; }
+.ctl { display: grid; gap: 5px; }
+.ctl label, .ctl .lbl { font-size: 13px; font-weight: 500; display: flex; justify-content: space-between; gap: 8px; }
+.ctl output, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+input[type="number"], input[type="text"], select { font: 14px var(--font-mono); color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; width: 100%; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.segs { display: flex; flex-wrap: wrap; gap: 6px; }
+label.seg { position: relative; cursor: pointer; }
+label.seg input { position: absolute; opacity: 0; pointer-events: none; }
+label.seg span { display: inline-block; font-size: 13px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); }
+label.seg input:checked + span { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { font: 500 14px var(--font-body); padding: 8px 14px; border-radius: 7px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); cursor: pointer; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn:hover { filter: brightness(0.97); }
+.readout { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; font-size: 14px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; padding: 4px 10px; border-radius: 999px; border: 1px solid currentColor; line-height: 1.35; }
+.chip.good { color: var(--good); }
+.chip.bad { color: var(--bad); }
+.chip.warn { color: var(--sand); }
+.chip.neutral { color: var(--muted); }
+.outcome { font-size: 14px; }
+.probe { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); padding: 0 6px; min-height: 1.5em; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; }
+.pcard { display: grid; gap: 10px; align-content: start; }
+.pcard .setup { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); }
+.opts { display: grid; gap: 6px; }
+.opt { text-align: left; font: 14px var(--font-body); padding: 8px 10px; border-radius: 7px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); cursor: pointer; }
+.opt:hover:not([disabled]) { border-color: var(--accent); }
+.opt[disabled] { cursor: default; }
+.opt.right { border-color: var(--good); background: color-mix(in srgb, var(--good) 12%, var(--panel)); }
+.opt.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 10%, var(--panel)); }
+.fb { font-size: 14px; display: grid; gap: 6px; padding: 10px 12px; border-radius: 8px; background: color-mix(in srgb, var(--ink) 5%, var(--panel)); }
+.fb strong.ok { color: var(--good); }
+.fb strong.no { color: var(--bad); }
+.sechead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.v { font-family: var(--font-math); font-style: italic; }
+.mat { display: inline-grid; vertical-align: middle; border-left: 1.5px solid var(--ink); border-right: 1.5px solid var(--ink); border-radius: 4px; padding: 1px 7px; margin: 2px 3px; font-family: var(--font-mono); font-size: 14px; }
+.mrow { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(2.2em, auto); text-align: center; column-gap: .5em; }
+.drillbox { display: grid; gap: 14px; max-width: 760px; }
+.prompt { font-size: 16px; line-height: 1.7; }
+.score { display: flex; gap: 14px; flex-wrap: wrap; font-size: 14px; color: var(--muted); }
+.score b { color: var(--ink); font-family: var(--font-mono); }
+.numin { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+.numin .ctl { width: 140px; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--muted); padding: 0 6px; }
+.legend i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 6px; border-radius: 2px; }
+.quiz { display: grid; gap: 14px; max-width: 820px; }
+.q { display: grid; gap: 10px; }
+.q .qn { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.q .qp { font-size: 15.5px; }
+.q label.choice { display: flex; gap: 10px; align-items: flex-start; padding: 7px 10px; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; background: var(--paper); }
+.q label.choice input { margin-top: 4px; accent-color: var(--accent); }
+.q label.choice.right { border-color: var(--good); }
+.q label.choice.wrong { border-color: var(--bad); }
+.q .exp { display: none; }
+.q.graded .exp { display: grid; }
+.result { display: grid; gap: 10px; max-width: 820px; }
+.bigscore { font-family: var(--font-display); font-size: 34px; font-weight: 600; }
+textarea { width: 100%; min-height: 120px; font: 12.5px var(--font-mono); color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+.hide { display: none !important; }
+footer { margin-top: 40px; font-size: 12.5px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">Lecture 7 · Non-convex functions and optimization · practice</div>
+    <h1>Non-Convex Optimization Lab</h1>
+    <p class="lede">Four hands-on labs and a graded knowledge check. In each lab, change the settings, run the method, and read the numbers on the right. The "Predict, then run" questions ask you to commit to an answer before the simulation shows what happens.</p>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button role="tab" id="tab-basins" aria-controls="basins" aria-selected="true"><span class="n">1</span>Basins of attraction</button>
+    <button role="tab" id="tab-saddles" aria-controls="saddles" aria-selected="false"><span class="n">2</span>Saddle points</button>
+    <button role="tab" id="tab-drill" aria-controls="drill" aria-selected="false"><span class="n">3</span>Practice drill</button>
+    <button role="tab" id="tab-bayes" aria-controls="bayes" aria-selected="false"><span class="n">4</span>Bayesian optimization</button>
+    <button role="tab" id="tab-check" aria-controls="check" aria-selected="false"><span class="n">5</span>Knowledge check</button>
+  </nav>
+
+  <!-- 1. BASINS -->
+  <section class="tab on" id="basins" role="tabpanel" aria-labelledby="tab-basins">
+    <div class="intro">
+      <h2>Which Godzilla does gradient descent find?</h2>
+      <p>The function below has three local minima, A, B and C, separated by two hilltops. Gradient descent only sees the local slope, so where it ends depends on the start x<sub>0</sub>, the step size α and the method. Click the plot to choose a start.</p>
+      <p class="src">Slides 5–14 and 47–48 · f(x) = 0.04x⁶ − 0.5x⁴ + 1.3x² + 0.35x · Noisy GD uses the update from slide 48: x ← x − α(f′(x) + r), with r uniform in [−R, R]</p>
+    </div>
+    <div class="lab">
+      <div class="card plotcard">
+        <canvas id="cv1" class="wide" aria-label="Plot of the one-dimensional function with the gradient descent path"></canvas>
+        <div class="legend"><span><i style="background:var(--ink)"></i>f(x)</span><span><i style="background:var(--accent)"></i>iterates x<sub>t</sub></span><span>Shaded bands: basins of attraction for small steps</span></div>
+      </div>
+      <div class="card controls">
+        <div class="ctl"><span class="lbl">Method</span>
+          <div class="segs" role="radiogroup" aria-label="Method">
+            <label class="seg"><input type="radio" name="m1" value="gd" id="m1-gd" checked><span>Gradient descent</span></label>
+            <label class="seg"><input type="radio" name="m1" value="pgd" id="m1-pgd"><span>Noisy GD</span></label>
+            <label class="seg"><input type="radio" name="m1" value="mom" id="m1-mom"><span>Momentum</span></label>
+          </div>
+        </div>
+        <div class="ctl"><label for="x01"><span>Start x<sub>0</sub></span> <output id="x01v" class="mono"></output></label><input type="range" id="x01" min="-3.2" max="3.2" step="0.01"></div>
+        <div class="ctl"><label for="a1">Step size α <output id="a1v"></output></label><input type="range" id="a1" min="0.005" max="0.4" step="0.005"></div>
+        <div class="ctl" id="rho1-box"><label for="rho1">Momentum ρ <output id="rho1v"></output></label><input type="range" id="rho1" min="0" max="0.98" step="0.01"></div>
+        <div class="ctl" id="R1-box"><label for="R1">Noise radius R <output id="R1v"></output></label><input type="range" id="R1" min="0" max="1.5" step="0.05"></div>
+        <div class="ctl"><label for="st1">Steps <output id="st1v"></output></label><input type="range" id="st1" min="10" max="600" step="10"></div>
+        <div class="btns">
+          <button class="btn primary" id="run1">Run</button>
+          <button class="btn" id="hill1">Start on a hilltop</button>
+          <button class="btn" id="rand1">Random start</button>
+        </div>
+        <div class="readout">
+          <div class="outcome" id="out1"></div>
+          <dl class="kv" id="kv1"></dl>
+        </div>
+      </div>
+    </div>
+    <div class="sechead"><h3>Predict, then run</h3><span class="caption">Choosing an answer loads the settings and runs them.</span></div>
+    <div class="cards" id="pc1"></div>
+  </section>
+
+  <!-- 2. SADDLES -->
+  <section class="tab" id="saddles" role="tabpanel" aria-labelledby="tab-saddles">
+    <div class="intro">
+      <h2>Saddle points and second-order stationarity</h2>
+      <p>Here f(x, y) = ½x² + ¼y⁴ − ½y². Its gradient is (x, y³ − y) and its Hessian is diagonal with eigenvalues 1 and 3y² − 1. The origin is a strict saddle; (0, 1) and (0, −1) are the minima. Run different methods from the same start, and check the end point against the (ε, δ) conditions from slide 46. Move the cursor over the map to probe any point.</p>
+      <p class="src">Slides 12–14, 35–39, 43–48 · Perturbed GD follows Jin et al. (2017): it adds a random kick of size up to αR only when ‖∇f‖ ≤ ε, and it stops, returning the point before the last kick, when f has not decreased by 10⁻⁴ within 40 steps of a kick.</p>
+    </div>
+    <div class="lab">
+      <div class="card plotcard">
+        <canvas id="cv2" class="wide" aria-label="Contour map of the two-dimensional function with the optimization path"></canvas>
+        <div class="probe" id="probe2">Move the cursor over the map to see the gradient and Hessian at that point.</div>
+      </div>
+      <div class="card controls">
+        <div class="ctl"><span class="lbl">Method</span>
+          <div class="segs" role="radiogroup" aria-label="Method">
+            <label class="seg"><input type="radio" name="m2" value="gd" id="m2-gd" checked><span>GD</span></label>
+            <label class="seg"><input type="radio" name="m2" value="pgd" id="m2-pgd"><span>Perturbed GD</span></label>
+            <label class="seg"><input type="radio" name="m2" value="mom" id="m2-mom"><span>Momentum</span></label>
+            <label class="seg"><input type="radio" name="m2" value="newton" id="m2-newton"><span>Newton</span></label>
+            <label class="seg"><input type="radio" name="m2" value="sfn" id="m2-sfn"><span>Saddle-free Newton</span></label>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="ctl"><label for="x02"><span>Start x<sub>0</sub></span></label><input type="number" id="x02" step="0.0001" min="-2.4" max="2.4"></div>
+          <div class="ctl"><label for="y02"><span>Start y<sub>0</sub></span></label><input type="number" id="y02" step="0.0001" min="-1.6" max="1.6"></div>
+        </div>
+        <div class="ctl"><label for="a2">Step size α <output id="a2v"></output></label><input type="range" id="a2" min="0.01" max="1" step="0.01"></div>
+        <div class="ctl" id="rho2-box"><label for="rho2">Momentum ρ <output id="rho2v"></output></label><input type="range" id="rho2" min="0" max="0.98" step="0.01"></div>
+        <div class="ctl" id="R2-box"><label for="R2">Kick radius R <output id="R2v"></output></label><input type="range" id="R2" min="0" max="1.5" step="0.05"></div>
+        <div class="ctl"><label for="st2">Steps <output id="st2v"></output></label><input type="range" id="st2" min="5" max="400" step="5"></div>
+        <div class="row2">
+          <div class="ctl"><label for="eps2">ε <output id="eps2v"></output></label><input type="range" id="eps2" min="-4" max="-1" step="0.25"></div>
+          <div class="ctl"><label for="del2">δ <output id="del2v"></output></label><input type="range" id="del2" min="0.01" max="1" step="0.01"></div>
+        </div>
+        <div class="btns"><button class="btn primary" id="run2">Run</button></div>
+        <div class="readout">
+          <div class="outcome" id="out2"></div>
+          <dl class="kv" id="kv2"></dl>
+        </div>
+      </div>
+    </div>
+    <div class="sechead"><h3>Predict, then run</h3><span class="caption">Choosing an answer loads the settings and runs them.</span></div>
+    <div class="cards" id="pc2"></div>
+  </section>
+
+  <!-- 3. DRILL -->
+  <section class="tab" id="drill" role="tabpanel" aria-labelledby="tab-drill">
+    <div class="intro">
+      <h2>Practice drill</h2>
+      <p>Each problem is generated at random, so you can practise as long as you like. Every answer comes with a worked explanation.</p>
+      <p class="src">Slides 26–28, 35–39, 43–48</p>
+    </div>
+    <div class="card drillbox">
+      <div class="sechead">
+        <div class="ctl" style="min-width:260px"><label for="dtype">Problem type</label>
+          <select id="dtype">
+            <option value="all">Mixed (all types)</option>
+            <option value="hess">Classify a stationary point from its Hessian</option>
+            <option value="poly">Find and classify a critical point</option>
+            <option value="sosp">Check the (ε, δ) conditions</option>
+            <option value="gd">Compute one gradient step</option>
+            <option value="newton">Newton step: descent or not?</option>
+          </select>
+        </div>
+        <div class="score"><span>Correct <b id="sc-c">0</b> / <b id="sc-n">0</b></span><span>Streak <b id="sc-s">0</b></span></div>
+      </div>
+      <div class="prompt" id="dprompt"></div>
+      <div id="dans"></div>
+      <div id="dfb"></div>
+      <div class="btns"><button class="btn primary" id="dnext">New problem</button></div>
+    </div>
+  </section>
+
+  <!-- 4. BAYES -->
+  <section class="tab" id="bayes" role="tabpanel" aria-labelledby="tab-bayes">
+    <div class="intro">
+      <h2>Bayesian optimization versus grid search</h2>
+      <p>The goal is to <b>maximize</b> a one-dimensional black-box function on [0, 1], as in the slide figures. A Gaussian process (RBF kernel, length-scale ℓ) models the function from the points evaluated so far. The next point maximizes the upper confidence bound μ(x) + κσ(x). The lower chart compares the error, true maximum minus best value found, with a grid search that uses the same number of evaluations.</p>
+      <p class="src">Slides 54–59 · starts from 3 evaluations at x = 0.1, 0.4, 0.9</p>
+    </div>
+    <div class="lab">
+      <div class="card plotcard">
+        <canvas id="cv4" class="wide" aria-label="Gaussian process fit with acquisition function"></canvas>
+        <div class="legend"><span><i style="background:var(--ink)"></i>GP mean μ</span><span><i style="background:var(--plum);opacity:.45"></i>μ ± 2σ</span><span><i style="background:var(--muted)"></i>true f (dashed)</span><span><i style="background:var(--good)"></i>acquisition μ + κσ</span></div>
+        <canvas id="cv4b" class="short" aria-label="Error versus number of evaluations"></canvas>
+        <div class="legend"><span><i style="background:var(--accent)"></i>Bayesian optimization</span><span><i style="background:var(--teal)"></i>grid search</span></div>
+      </div>
+      <div class="card controls">
+        <div class="ctl"><span class="lbl">Objective</span>
+          <div class="segs" role="radiogroup" aria-label="Objective">
+            <label class="seg"><input type="radio" name="obj4" value="smooth" id="obj4-s" checked><span>Smooth</span></label>
+            <label class="seg"><input type="radio" name="obj4" value="rough" id="obj4-r"><span>Rough</span></label>
+          </div>
+        </div>
+        <div class="ctl"><label for="ell4">Length-scale ℓ <output id="ell4v"></output></label><input type="range" id="ell4" min="0.02" max="0.3" step="0.01"></div>
+        <div class="ctl"><label for="kap4">Exploration weight κ <output id="kap4v"></output></label><input type="range" id="kap4" min="0" max="4" step="0.1"></div>
+        <div class="ctl"><label for="tru4" style="justify-content:flex-start;gap:8px"><input type="checkbox" id="tru4" checked> Show the true function</label></div>
+        <div class="btns">
+          <button class="btn primary" id="next4">Next evaluation</button>
+          <button class="btn" id="five4">Run 5 more</button>
+          <button class="btn" id="reset4">Reset</button>
+        </div>
+        <div class="readout">
+          <div class="outcome" id="out4"></div>
+          <dl class="kv" id="kv4"></dl>
+        </div>
+      </div>
+    </div>
+    <div class="sechead"><h3>Predict, then run</h3><span class="caption">Choosing an answer loads the settings and runs them.</span></div>
+    <div class="cards" id="pc4"></div>
+  </section>
+
+  <!-- 5. CHECK -->
+  <section class="tab" id="check" role="tabpanel" aria-labelledby="tab-check">
+    <div class="intro">
+      <h2>Knowledge check</h2>
+      <p>Fourteen questions on the whole lecture. Answer all of them, then press Submit to see your score and an explanation for each question. Numeric answers are accepted within a small tolerance.</p>
+    </div>
+    <div class="quiz" id="quiz"></div>
+    <div class="card result">
+      <div class="ctl" style="max-width:320px"><label for="qname">Your name (included in the copied results)</label><input type="text" id="qname" autocomplete="name"></div>
+      <div class="btns"><button class="btn primary" id="qsubmit">Submit answers</button><button class="btn" id="qretake">Retake with new order</button></div>
+      <div id="qresult" class="hide result">
+        <div class="bigscore" id="qscore"></div>
+        <p id="qmsg"></p>
+        <div class="btns"><button class="btn" id="qcopy">Copy results</button></div>
+        <textarea id="qtext" class="hide" readonly aria-label="Results text"></textarea>
+      </div>
+    </div>
+  </section>
+
+  <footer>Built for Lecture 7 (adapted from slides by Issam Laradji, UBC, and Yuanzhi Li, CMU). All simulations run in your browser.</footer>
+</div>
+
+<script>
+"use strict";
+/* ---------- utilities ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function hexToRgb(h) { h = h.replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); const n = parseInt(h, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+function rgba(hex, a) { const [r, g, b] = hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; }
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const minus = s => String(s).replace(/-/g, '−');
+function num(v, d = 3) {
+  if (!isFinite(v)) return '∞';
+  if (v === 0) return '0';
+  const a = Math.abs(v);
+  if (a < 1e-3 || a >= 1e5) { const e = Math.floor(Math.log10(a)); const m = v / Math.pow(10, e); return `${minus(m.toFixed(1))}×10<sup>${minus(e)}</sup>`; }
+  return minus(String(+v.toFixed(d)));
+}
+const numTxt = (v, d = 3) => num(v, d).replace(/<sup>/g, '^').replace(/<\/sup>/g, '');
+const V = s => `<i class="v">${s}</i>`;
+const mat = rows => `<span class="mat">${rows.map(r => `<span class="mrow">${r.map(c => `<span>${c}</span>`).join('')}</span>`).join('')}</span>`;
+function prepCanvas(cv) {
+  const r = cv.getBoundingClientRect(); const dpr = window.devicePixelRatio || 1;
+  const w = Math.max(50, Math.round(r.width)), h = Math.max(50, Math.round(r.height));
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+function scale(w, h, pad, xr, yr) {
+  const L = pad.l, R = w - pad.r, T = pad.t, B = h - pad.b;
+  return { L, R, T, B, X: x => L + (x - xr[0]) / (xr[1] - xr[0]) * (R - L), Y: y => B - (y - yr[0]) / (yr[1] - yr[0]) * (B - T),
+    ix: px => xr[0] + (px - L) / (R - L) * (xr[1] - xr[0]), iy: py => yr[0] + (B - py) / (B - T) * (yr[1] - yr[0]) };
+}
+function axes(ctx, s, xt, yt, opt = {}) {
+  const ink = cssv('--ink'), muted = cssv('--muted');
+  ctx.save(); ctx.font = '11px ' + cssv('--font-mono'); ctx.fillStyle = muted; ctx.lineWidth = 1;
+  ctx.strokeStyle = rgba(ink, 0.08);
+  xt.forEach(x => { const px = s.X(x); ctx.beginPath(); ctx.moveTo(px, s.T); ctx.lineTo(px, s.B); ctx.stroke(); ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(minus(x), px, s.B + 5); });
+  yt.forEach(y => { const py = s.Y(y); ctx.beginPath(); ctx.moveTo(s.L, py); ctx.lineTo(s.R, py); ctx.stroke(); ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(minus(y), s.L - 6, py); });
+  ctx.strokeStyle = rgba(ink, 0.35); ctx.strokeRect(s.L, s.T, s.R - s.L, s.B - s.T);
+  if (opt.xl) { ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.fillText(opt.xl, s.R, s.B + 18); }
+  if (opt.yl) { ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillText(opt.yl, s.L, s.T - 4); }
+  ctx.restore();
+}
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function animate(duration, frame) {
+  if (reduceMotion) { frame(1); return; }
+  const t0 = performance.now();
+  const step = now => { const p = Math.min(1, (now - t0) / duration); frame(p); if (p < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function bindRange(id, fmt, onInput) {
+  const el = $('#' + id), out = $('#' + id + 'v');
+  const show = () => { if (out) out.innerHTML = fmt(+el.value); };
+  el.addEventListener('input', () => { show(); onInput && onInput(+el.value); });
+  return { el, show, set(v) { el.value = v; show(); } };
+}
+function shuffle(a, rnd = Math.random) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+/* Predict-then-run card builder */
+function buildCards(container, cards) {
+  container.innerHTML = '';
+  cards.forEach((c, ci) => {
+    const el = document.createElement('div'); el.className = 'card pcard';
+    el.innerHTML = `<h3>${c.title}</h3><p>${c.q}</p><div class="setup">${c.setup}</div><div class="opts">${c.options.map((o, i) => `<button class="opt" data-i="${i}" id="${container.id}-c${ci}-o${i}">${o}</button>`).join('')}</div><div class="fbslot"></div>`;
+    container.appendChild(el);
+    $$('.opt', el).forEach(b => b.addEventListener('click', () => {
+      const i = +b.dataset.i; const res = c.run();
+      $$('.opt', el).forEach(x => { x.disabled = true; const k = +x.dataset.i; if (k === c.answer) x.classList.add('right'); else if (k === i) x.classList.add('wrong'); });
+      const ok = i === c.answer;
+      $('.fbslot', el).innerHTML = `<div class="fb"><strong class="${ok ? 'ok' : 'no'}">${ok ? 'Correct.' : 'Not quite.'}</strong><span>${c.explain(res)}</span><span><button class="btn" data-reset>Try again</button></span></div>`;
+      $('[data-reset]', el).addEventListener('click', () => { $$('.opt', el).forEach(x => { x.disabled = false; x.classList.remove('right', 'wrong'); }); $('.fbslot', el).innerHTML = ''; });
+    }));
+  });
+}
+
+/* ---------- 1. Basins ---------- */
+const P1 = { c6: 0.04, c4: -0.5, c2: 1.3, c1: 0.35 };
+const f1 = x => P1.c6 * x ** 6 + P1.c4 * x ** 4 + P1.c2 * x ** 2 + P1.c1 * x;
+const df1 = x => 6 * P1.c6 * x ** 5 + 4 * P1.c4 * x ** 3 + 2 * P1.c2 * x + P1.c1;
+const d2f1 = x => 30 * P1.c6 * x ** 4 + 12 * P1.c4 * x ** 2 + 2 * P1.c2;
+function root1(x) { for (let i = 0; i < 80; i++) x -= df1(x) / d2f1(x); return x; }
+const MINS = [{ k: 'A', x: root1(-2.6) }, { k: 'B', x: root1(-0.14) }, { k: 'C', x: root1(2.57) }];
+MINS.forEach(m => { m.f = f1(m.x); m.h = d2f1(m.x); });
+const GMIN = MINS.reduce((a, b) => (a.f < b.f ? a : b));
+const MAXS = [root1(-1.17), root1(1.35)];
+const S1 = { x0: 2.0, alpha: 0.02, rho: 0.9, R: 0.5, steps: 200, method: 'gd', xs: [], res: null, shown: 1, hillIdx: 1 };
+
+function simulate1(cfg, rnd = Math.random) {
+  let x = cfg.x0, v = 0, div = false; const xs = [x];
+  for (let t = 0; t < cfg.steps; t++) {
+    const g = df1(x);
+    if (cfg.method === 'gd') x = x - cfg.alpha * g;
+    else if (cfg.method === 'pgd') x = x - cfg.alpha * (g + (rnd() * 2 - 1) * cfg.R);
+    else { v = cfg.rho * v - cfg.alpha * g; x = x + v; }
+    xs.push(x);
+    if (!isFinite(x) || Math.abs(x) > 6) { div = true; break; }
+  }
+  return { xs, div, out: classify1(xs, div, cfg) };
+}
+function classify1(xs, div, cfg) {
+  const xe = xs[xs.length - 1];
+  if (div) return { kind: 'div', text: 'Diverged: the step size is too large for this function.' };
+  const tail = xs.slice(-20), spread = Math.max(...tail) - Math.min(...tail);
+  const noisy = cfg.method === 'pgd';
+  for (const m of MINS) {
+    if (Math.abs(xe - m.x) < (noisy ? 0.15 : 2e-3) && spread < (noisy ? 0.4 : 5e-3))
+      return { kind: 'min', key: m.k, text: `${noisy ? 'Ended near' : 'Reached'} minimum ${m.k} at x ≈ ${num(m.x)}, ${m === GMIN ? 'the global minimum' : 'a local minimum'}.` };
+  }
+  for (const M of MAXS) if (Math.abs(xe - M) < 2e-3 && spread < 1e-6) return { kind: 'max', text: `Stuck on the hilltop x ≈ ${num(M)}. It is a local maximum, f′ = 0 there, so the gradient step is zero.` };
+  if (spread > 0.02) return { kind: 'osc', text: 'Did not settle: the iterates keep jumping. The step size is too large for the valley they are in.' };
+  return { kind: 'moving', text: 'Still moving slowly. Increase the number of steps.' };
+}
+const XR1 = [-3.3, 3.3], YR1 = [-3.2, 6.5];
+function draw1() {
+  const cv = $('#cv1'); const { ctx, w, h } = prepCanvas(cv);
+  const s = scale(w, h, { l: 40, r: 12, t: 22, b: 26 }, XR1, YR1);
+  const ink = cssv('--ink'), accent = cssv('--accent'), muted = cssv('--muted');
+  const tints = [cssv('--teal'), cssv('--plum'), cssv('--sand')];
+  const edges = [XR1[0], MAXS[0], MAXS[1], XR1[1]];
+  ctx.save(); ctx.font = '11px ' + cssv('--font-mono');
+  for (let i = 0; i < 3; i++) {
+    ctx.fillStyle = rgba(tints[i], 0.08); ctx.fillRect(s.X(edges[i]), s.T, s.X(edges[i + 1]) - s.X(edges[i]), s.B - s.T);
+    ctx.fillStyle = tints[i]; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText('basin ' + MINS[i].k, (s.X(edges[i]) + s.X(edges[i + 1])) / 2, s.T + 6);
+  }
+  ctx.restore();
+  axes(ctx, s, [-3, -2, -1, 0, 1, 2, 3], [-2, 0, 2, 4, 6], { xl: 'x', yl: 'f(x)' });
+  ctx.save(); ctx.beginPath(); ctx.rect(s.L, s.T, s.R - s.L, s.B - s.T); ctx.clip();
+  ctx.strokeStyle = ink; ctx.lineWidth = 2; ctx.beginPath();
+  for (let i = 0; i <= 600; i++) { const x = XR1[0] + (XR1[1] - XR1[0]) * i / 600; const px = s.X(x), py = s.Y(f1(x)); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+  ctx.stroke();
+  // critical points
+  ctx.font = '600 12px ' + cssv('--font-body');
+  MINS.forEach((m, i) => { ctx.fillStyle = tints[i]; ctx.beginPath(); ctx.arc(s.X(m.x), s.Y(m.f), 4, 0, 7); ctx.fill(); ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(m.k + (m === GMIN ? ' (global)' : ''), s.X(m.x), s.Y(m.f) + 8); });
+  MAXS.forEach(M => { ctx.strokeStyle = muted; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(s.X(M), s.Y(f1(M)), 4.5, 0, 7); ctx.stroke(); });
+  // trajectory
+  const xs = S1.xs, n = Math.max(1, Math.round(S1.shown * (xs.length - 1)));
+  ctx.lineWidth = 1.2; ctx.strokeStyle = rgba(accent, 0.55); ctx.beginPath();
+  for (let i = 0; i <= n && i < xs.length; i++) { const x = Math.max(-9, Math.min(9, xs[i])); const px = s.X(x), py = s.Y(Math.min(40, f1(x))); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+  ctx.stroke();
+  for (let i = 0; i <= n && i < xs.length; i++) { const x = Math.max(-9, Math.min(9, xs[i])); ctx.fillStyle = rgba(accent, 0.25 + 0.6 * i / Math.max(1, n)); ctx.beginPath(); ctx.arc(s.X(x), s.Y(Math.min(40, f1(x))), 2.6, 0, 7); ctx.fill(); }
+  // start ring and end
+  ctx.strokeStyle = accent; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(s.X(S1.x0), s.Y(f1(S1.x0)), 7, 0, 7); ctx.stroke();
+  if (xs.length) { const xe = Math.max(-9, Math.min(9, xs[Math.min(n, xs.length - 1)])); ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(s.X(xe), s.Y(Math.min(40, f1(xe))), 5.5, 0, 7); ctx.fill(); ctx.strokeStyle = cssv('--panel'); ctx.lineWidth = 1.5; ctx.stroke(); }
+  ctx.restore();
+  cv._s = s;
+}
+function readout1() {
+  const r = S1.res; if (!r) return;
+  const xe = r.xs[r.xs.length - 1];
+  const cls = { min: 'good', max: 'bad', osc: 'warn', div: 'bad', moving: 'neutral' }[r.out.kind];
+  $('#out1').innerHTML = `<span class="chip ${cls}">${{ min: 'Converged', max: 'Stuck', osc: 'Oscillating', div: 'Diverged', moving: 'Not finished' }[r.out.kind]}</span><p style="margin-top:8px">${r.out.text}</p>`;
+  $('#kv1').innerHTML = isFinite(xe) && Math.abs(xe) < 6 ?
+    `<dt>start x<sub>0</sub></dt><dd>${num(S1.x0, 4)}</dd><dt>f′(x<sub>0</sub>)</dt><dd>${num(df1(S1.x0), 4)}</dd><dt>final x</dt><dd>${num(xe, 4)}</dd><dt>f(x)</dt><dd>${num(f1(xe), 4)}</dd><dt>f′(x)</dt><dd>${num(df1(xe), 4)}</dd><dt>f″(x)</dt><dd>${num(d2f1(xe), 3)}</dd><dt>steps run</dt><dd>${r.xs.length - 1}</dd>` :
+    `<dt>start x<sub>0</sub></dt><dd>${num(S1.x0, 4)}</dd><dt>steps before blow-up</dt><dd>${r.xs.length - 1}</dd>`;
+}
+function run1(seed) {
+  const rnd = seed ? mulberry32(seed) : Math.random;
+  S1.res = simulate1(S1, rnd); S1.xs = S1.res.xs; readout1();
+  animate(Math.min(1400, 300 + 4 * S1.xs.length), p => { S1.shown = p; draw1(); });
+}
+const ui1 = {
+  x0: bindRange('x01', v => num(v, 3), v => { S1.x0 = v; }),
+  a: bindRange('a1', v => num(v, 3), v => { S1.alpha = v; }),
+  rho: bindRange('rho1', v => num(v, 2), v => { S1.rho = v; }),
+  R: bindRange('R1', v => num(v, 2), v => { S1.R = v; }),
+  st: bindRange('st1', v => String(v), v => { S1.steps = v; }),
+};
+function setMethod1(m) { S1.method = m; $('#m1-' + m).checked = true; $('#rho1-box').classList.toggle('hide', m !== 'mom'); $('#R1-box').classList.toggle('hide', m !== 'pgd'); }
+$$('input[name="m1"]').forEach(r => r.addEventListener('change', () => setMethod1(r.value)));
+function apply1(cfg) {
+  Object.assign(S1, cfg); ui1.x0.set(S1.x0); $('#x01v').innerHTML = num(S1.x0, 4); ui1.a.set(S1.alpha); ui1.rho.set(S1.rho); ui1.R.set(S1.R); ui1.st.set(S1.steps); setMethod1(S1.method);
+}
+$('#run1').addEventListener('click', () => run1());
+$('#hill1').addEventListener('click', () => { S1.hillIdx = 1 - S1.hillIdx; apply1({ x0: MAXS[S1.hillIdx] }); run1(); });
+$('#rand1').addEventListener('click', () => { apply1({ x0: +(Math.random() * 6.2 - 3.1).toFixed(2) }); run1(); });
+$('#cv1').addEventListener('click', e => { const s = $('#cv1')._s; if (!s) return; const r = e.currentTarget.getBoundingClientRect(); const x = s.ix(e.clientX - r.left); if (x < -3.2 || x > 3.2) return; apply1({ x0: +x.toFixed(2) }); run1(); });
+
+const hillR = MAXS[1];
+buildCards($('#pc1'), [
+  { title: 'Small steps', q: 'Plain gradient descent starts at x<sub>0</sub> = 2.0 with α = 0.02. Where does it end?', setup: 'x₀ = 2.0 · GD · α = 0.02 · 200 steps',
+    options: ['Minimum A (global)', 'Minimum B', 'Minimum C', 'It does not settle'], answer: 2,
+    run: () => { apply1({ x0: 2.0, alpha: 0.02, steps: 200, method: 'gd' }); run1(); return S1.res; },
+    explain: () => 'x₀ = 2.0 lies in basin C, between the right hilltop and the right edge. With a small step, every iterate moves downhill and stays in the same basin, so GD stops at C, even though A is lower. Gradient descent cannot see other valleys.' },
+  { title: 'Large steps', q: 'Same start, x<sub>0</sub> = 2.0, but α = 0.25. Where does it end?', setup: 'x₀ = 2.0 · GD · α = 0.25 · 200 steps',
+    options: ['Minimum A (global)', 'Minimum B', 'Minimum C', 'It diverges'], answer: 1,
+    run: () => { apply1({ x0: 2.0, alpha: 0.25, steps: 200, method: 'gd' }); run1(); return S1.res; },
+    explain: () => { const c = MINS[2].h, b = MINS[1].h; return `Near a minimum m, one GD step multiplies the distance to m by about |1 − α f″(m)|. At C, f″ ≈ ${num(c, 1)}, so the factor is |1 − 0.25 · ${num(c, 1)}| ≈ ${num(Math.abs(1 - 0.25 * c), 2)} > 1: the iterates cannot stay in C and bounce out. At B, f″ ≈ ${num(b, 2)} and the factor is ≈ ${num(Math.abs(1 - 0.25 * b), 2)} < 1, so B is stable. A large step can settle only in a flat minimum (f″ < 2/α).`; } },
+  { title: 'Balanced on a hilltop', q: `Plain gradient descent starts exactly on the hilltop x<sub>0</sub> ≈ ${num(hillR)}. What happens?`, setup: `x₀ = ${numTxt(hillR, 4)} · GD · α = 0.02 · 200 steps`,
+    options: ['It rolls down to B', 'It rolls down to C', 'It stays on the hilltop', 'It diverges'], answer: 2,
+    run: () => { apply1({ x0: hillR, alpha: 0.02, steps: 200, method: 'gd' }); run1(); return S1.res; },
+    explain: () => `f′(x₀) is zero up to rounding (${num(df1(hillR))}), so the update x − αf′(x) does not move x. The hilltop is a stationary point that is not a minimum. Now switch the method to Noisy GD and press Run: the noise pushes x off the top and it rolls into B or C.` },
+  { title: 'Momentum', q: 'Start at x<sub>0</sub> = 3.2 with α = 0.01 and momentum ρ = 0.95. Where does it end?', setup: 'x₀ = 3.2 · momentum · α = 0.01 · ρ = 0.95 · 400 steps',
+    options: ['Minimum C, the nearest one', 'Minimum B', 'Minimum A (global)', 'It diverges'], answer: 2,
+    run: () => { apply1({ x0: 3.2, alpha: 0.01, rho: 0.95, steps: 400, method: 'mom' }); run1(); return S1.res; },
+    explain: () => `Starting high (f(3.2) ≈ ${num(f1(3.2), 2)}), the iterate builds up velocity while rolling down. The stored velocity carries it over the right hilltop (f ≈ ${num(f1(MAXS[1]), 2)}) and the left hilltop (f ≈ ${num(f1(MAXS[0]), 2)}) into A. Try ρ = 0.9 (ends in B) and ρ = 0 (ends in C). Momentum helps cross flat regions and small bumps, but it does not know which valley is best.` },
+]);
+
+/* ---------- 2. Saddles ---------- */
+const f2 = (x, y) => 0.5 * x * x + 0.25 * y ** 4 - 0.5 * y * y;
+const g2 = (x, y) => [x, y * y * y - y];
+const eig2 = (x, y) => [1, 3 * y * y - 1];
+const XR2 = [-2.4, 2.4], YR2 = [-1.6, 1.6];
+const S2 = { x0: 2.0, y0: 0.0001, alpha: 0.1, rho: 0.9, R: 0.5, steps: 150, method: 'gd', eps: 0.01, del: 0.1, path: [], shown: 1, div: false };
+const CRIT2 = [{ name: 'saddle (0, 0)', x: 0, y: 0, kind: 'saddle' }, { name: 'minimum (0, 1)', x: 0, y: 1, kind: 'min' }, { name: 'minimum (0, −1)', x: 0, y: -1, kind: 'min' }];
+function simulate2(cfg, rnd = Math.random) {
+  let x = cfg.x0, y = cfg.y0, vx = 0, vy = 0, div = false, stopped = false, kicks = 0, tPert = -Infinity, xt = null; const path = [[x, y]];
+  const PT = 40, FTHR = 1e-4;
+  for (let t = 0; t < cfg.steps; t++) {
+    let [gx, gy] = g2(x, y); const hy = 3 * y * y - 1;
+    if (cfg.method === 'gd') { x = x - cfg.alpha * gx; y = y - cfg.alpha * gy; }
+    else if (cfg.method === 'pgd') {
+      if (Math.hypot(gx, gy) <= cfg.eps && t - tPert > PT) {
+        xt = [x, y]; tPert = t; kicks++;
+        const th = rnd() * 2 * Math.PI, rad = cfg.R * Math.sqrt(rnd());
+        x += cfg.alpha * rad * Math.cos(th); y += cfg.alpha * rad * Math.sin(th); [gx, gy] = g2(x, y);
+      }
+      x = x - cfg.alpha * gx; y = y - cfg.alpha * gy;
+      if (xt && t - tPert === PT && f2(x, y) - f2(xt[0], xt[1]) > -FTHR) { path.push([x, y]); path.push(xt); stopped = true; break; }
+    }
+    else if (cfg.method === 'mom') { vx = cfg.rho * vx - cfg.alpha * gx; vy = cfg.rho * vy - cfg.alpha * gy; x += vx; y += vy; }
+    else if (cfg.method === 'newton') { const hh = Math.abs(hy) < 1e-9 ? (hy < 0 ? -1e-9 : 1e-9) : hy; x = x - cfg.alpha * gx; y = y - cfg.alpha * gy / hh; }
+    else { x = x - cfg.alpha * gx; y = y - cfg.alpha * gy / Math.max(Math.abs(hy), 0.1); }
+    path.push([x, y]);
+    if (!isFinite(x) || !isFinite(y) || Math.hypot(x, y) > 50) { div = true; break; }
+  }
+  return { path, div, stopped, kicks };
+}
+let heat2 = null;
+function heatmap2(w, h, s) {
+  const key = [w, h, cssv('--map-lo'), cssv('--map-hi'), cssv('--ink')].join('|');
+  if (heat2 && heat2.key === key) return heat2.cv;
+  const lo = hexToRgb(cssv('--map-lo')), mid = hexToRgb(cssv('--map-mid')), hi = hexToRgb(cssv('--map-hi')), ink = hexToRgb(cssv('--ink'));
+  const W = Math.round(s.R - s.L), H = Math.round(s.B - s.T);
+  const off = document.createElement('canvas'); off.width = W; off.height = H;
+  const octx = off.getContext('2d'); const img = octx.createImageData(W, H);
+  const fmin = -0.25, fmax = f2(2.4, 1.6), NL = 18; const lev = new Int16Array(W * H);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const x = XR2[0] + (i + 0.5) / W * (XR2[1] - XR2[0]), y = YR2[1] - (j + 0.5) / H * (YR2[1] - YR2[0]);
+    const t = Math.sqrt(Math.max(0, (f2(x, y) - fmin) / (fmax - fmin))); lev[j * W + i] = Math.min(NL - 1, Math.floor(t * NL));
+  }
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const L = lev[j * W + i], u = (L + 0.5) / NL; let c;
+    if (u < 0.5) { const a = u / 0.5; c = lo.map((v, k) => v + (mid[k] - v) * a); } else { const a = (u - 0.5) / 0.5; c = mid.map((v, k) => v + (hi[k] - v) * a); }
+    const edge = (i > 0 && lev[j * W + i - 1] !== L) || (j > 0 && lev[(j - 1) * W + i] !== L);
+    if (edge) c = c.map((v, k) => v * 0.72 + ink[k] * 0.28);
+    const o = 4 * (j * W + i); img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255;
+  }
+  octx.putImageData(img, 0, 0); heat2 = { key, cv: off }; return off;
+}
+function draw2() {
+  const cv = $('#cv2'); const { ctx, w, h } = prepCanvas(cv);
+  const s = scale(w, h, { l: 40, r: 12, t: 14, b: 26 }, XR2, YR2);
+  ctx.drawImage(heatmap2(w, h, s), s.L, s.T, s.R - s.L, s.B - s.T);
+  axes(ctx, s, [-2, -1, 0, 1, 2], [-1.5, -1, -0.5, 0, 0.5, 1, 1.5], { xl: 'x', yl: 'y' });
+  const ink = cssv('--ink'), accent = cssv('--accent'), panel = cssv('--panel');
+  ctx.save(); ctx.beginPath(); ctx.rect(s.L, s.T, s.R - s.L, s.B - s.T); ctx.clip();
+  ctx.font = '600 12px ' + cssv('--font-body');
+  CRIT2.forEach(c => {
+    const px = s.X(c.x), py = s.Y(c.y); ctx.lineWidth = 2.2;
+    if (c.kind === 'saddle') { ctx.strokeStyle = cssv('--plum'); ctx.beginPath(); ctx.moveTo(px - 6, py - 6); ctx.lineTo(px + 6, py + 6); ctx.moveTo(px + 6, py - 6); ctx.lineTo(px - 6, py + 6); ctx.stroke(); }
+    else { ctx.fillStyle = cssv('--teal'); ctx.beginPath(); ctx.arc(px, py, 5, 0, 7); ctx.fill(); }
+    ctx.fillStyle = ink; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(c.kind === 'saddle' ? 'saddle' : 'min', px + 10, py - 10);
+  });
+  const P = S2.path, n = Math.max(1, Math.round(S2.shown * (P.length - 1)));
+  const clampP = ([x, y]) => [Math.max(-9, Math.min(9, x)), Math.max(-9, Math.min(9, y))];
+  ctx.lineJoin = 'round';
+  for (const [lw, col] of [[4, rgba(panel, 0.7)], [2, accent]]) {
+    ctx.lineWidth = lw; ctx.strokeStyle = col; ctx.beginPath();
+    for (let i = 0; i <= n && i < P.length; i++) { const [x, y] = clampP(P[i]); i ? ctx.lineTo(s.X(x), s.Y(y)) : ctx.moveTo(s.X(x), s.Y(y)); }
+    ctx.stroke();
+  }
+  if (P.length < 120) for (let i = 0; i <= n && i < P.length; i++) { const [x, y] = clampP(P[i]); ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(s.X(x), s.Y(y), 2.2, 0, 7); ctx.fill(); }
+  ctx.strokeStyle = accent; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(s.X(S2.x0), s.Y(S2.y0), 7, 0, 7); ctx.stroke();
+  const [ex, ey] = clampP(P[Math.min(n, P.length - 1)]); ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(s.X(ex), s.Y(ey), 5.5, 0, 7); ctx.fill(); ctx.strokeStyle = panel; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.restore(); cv._s = s;
+}
+function sospHTML(x, y) {
+  const g = g2(x, y), gn = Math.hypot(g[0], g[1]), lam = eig2(x, y), lmin = Math.min(...lam);
+  const c1 = gn <= S2.eps, c2 = lmin >= -S2.del;
+  return { gn, lam, lmin, c1, c2 };
+}
+function readout2() {
+  const P = S2.path, [x, y] = P[P.length - 1];
+  if (S2.div) { $('#out2').innerHTML = `<span class="chip bad">Diverged</span><p style="margin-top:8px">The iterates left the region. For Newton's method this happens when the Hessian is nearly singular (y² close to 1/3).</p>`; $('#kv2').innerHTML = ''; return; }
+  const r = sospHTML(x, y);
+  let near = CRIT2.reduce((a, c) => (Math.hypot(x - c.x, y - c.y) < Math.hypot(x - a.x, y - a.y) ? c : a));
+  const d = Math.hypot(x - near.x, y - near.y);
+  const inSaddle = P.filter(([a, b]) => Math.hypot(a, b) < 0.1).length;
+  const ok = r.c1 && r.c2;
+  $('#out2').innerHTML = `<span class="chip ${ok ? 'good' : 'bad'}">${ok ? 'An (ε, δ)-second-order stationary point' : 'Not an (ε, δ)-second-order stationary point'}</span>
+    <p style="margin-top:8px">‖∇f‖ ≤ ε: <b>${r.c1 ? 'yes' : 'no'}</b> · λ<sub>min</sub> ≥ −δ: <b>${r.c2 ? 'yes' : 'no'}</b>. ${d < 0.05 ? `The end point is at the ${near.name}.` : `Nearest critical point: ${near.name}, at distance ${num(d, 3)}.`}</p>`;
+  $('#kv2').innerHTML = `<dt>end point</dt><dd>(${num(x, 4)}, ${num(y, 4)})</dd><dt>f</dt><dd>${num(f2(x, y), 4)}</dd><dt>‖∇f‖</dt><dd>${num(r.gn, 4)}</dd><dt>Hessian eigenvalues</dt><dd>${num(r.lam[0], 3)}, ${num(r.lam[1], 3)}</dd><dt>steps within 0.1 of the saddle</dt><dd>${inSaddle}</dd><dt>steps run</dt><dd>${P.length - 1}</dd>${S2.method === 'pgd' && S2.run ? `<dt>random kicks</dt><dd>${S2.run.kicks}</dd><dt>stopped by the decrease test</dt><dd>${S2.run.stopped ? 'yes' : 'no'}</dd>` : ''}`;
+}
+function run2(seed) {
+  const rnd = seed ? mulberry32(seed) : Math.random;
+  const r = simulate2(S2, rnd); S2.path = r.path; S2.div = r.div; S2.run = r; readout2();
+  animate(Math.min(1400, 300 + 5 * S2.path.length), p => { S2.shown = p; draw2(); });
+  return r;
+}
+const ui2 = {
+  a: bindRange('a2', v => num(v, 2), v => { S2.alpha = v; }),
+  rho: bindRange('rho2', v => num(v, 2), v => { S2.rho = v; }),
+  R: bindRange('R2', v => num(v, 2), v => { S2.R = v; }),
+  st: bindRange('st2', v => String(v), v => { S2.steps = v; }),
+  eps: bindRange('eps2', v => num(Math.pow(10, v), 4), v => { S2.eps = Math.pow(10, v); if (S2.path.length) readout2(); }),
+  del: bindRange('del2', v => num(v, 2), v => { S2.del = v; if (S2.path.length) readout2(); }),
+};
+function setMethod2(m) { S2.method = m; $('#m2-' + m).checked = true; $('#rho2-box').classList.toggle('hide', m !== 'mom'); $('#R2-box').classList.toggle('hide', m !== 'pgd'); }
+$$('input[name="m2"]').forEach(r => r.addEventListener('change', () => setMethod2(r.value)));
+$('#x02').addEventListener('change', e => { const v = parseFloat(e.target.value); if (isFinite(v)) S2.x0 = Math.max(-2.4, Math.min(2.4, v)); });
+$('#y02').addEventListener('change', e => { const v = parseFloat(e.target.value); if (isFinite(v)) S2.y0 = Math.max(-1.6, Math.min(1.6, v)); });
+function apply2(cfg) {
+  Object.assign(S2, cfg); $('#x02').value = S2.x0; $('#y02').value = S2.y0; ui2.a.set(S2.alpha); ui2.rho.set(S2.rho); ui2.R.set(S2.R); ui2.st.set(S2.steps);
+  ui2.eps.set(Math.log10(S2.eps)); ui2.del.set(S2.del); setMethod2(S2.method);
+}
+$('#run2').addEventListener('click', () => run2());
+$('#cv2').addEventListener('click', e => { const s = $('#cv2')._s; if (!s) return; const r = e.currentTarget.getBoundingClientRect(); const x = s.ix(e.clientX - r.left), y = s.iy(e.clientY - r.top); if (x < XR2[0] || x > XR2[1] || y < YR2[0] || y > YR2[1]) return; apply2({ x0: +x.toFixed(2), y0: +y.toFixed(2) }); run2(); });
+$('#cv2').addEventListener('mousemove', e => {
+  const s = $('#cv2')._s; if (!s) return; const r = e.currentTarget.getBoundingClientRect(); const x = s.ix(e.clientX - r.left), y = s.iy(e.clientY - r.top);
+  if (x < XR2[0] || x > XR2[1] || y < YR2[0] || y > YR2[1]) return;
+  const q = sospHTML(x, y);
+  $('#probe2').innerHTML = `cursor (${num(x, 2)}, ${num(y, 2)}) · ‖∇f‖ = ${num(q.gn, 3)} · eigenvalues 1, ${num(q.lam[1], 3)} · ${q.c1 && q.c2 ? 'passes' : 'fails'} the (ε, δ) test`;
+});
+
+buildCards($('#pc2'), [
+  { title: 'On the stable line', q: 'Plain GD starts at (2, 0) with α = 0.1. Where is it after 150 steps?', setup: '(x₀, y₀) = (2, 0) · GD · α = 0.1 · 150 steps',
+    options: ['Minimum (0, 1)', 'Minimum (0, −1)', 'Saddle (0, 0)', 'It diverges'], answer: 2,
+    run: () => { apply2({ x0: 2, y0: 0, alpha: 0.1, steps: 150, method: 'gd', eps: 0.01, del: 0.1 }); return run2(); },
+    explain: () => 'With y = 0 the y-component of the gradient, y³ − y, is exactly 0, so y never changes. The x-coordinate shrinks by the factor 1 − α = 0.9 per step. GD converges to the saddle. There the Hessian eigenvalues are 1 and −1, so λ<sub>min</sub> = −1 < −δ and the point fails the second-order condition.' },
+  { title: 'Slightly off the line', q: 'Plain GD starts at (2, 0.0001) with α = 0.1. Where is it after 150 steps?', setup: '(x₀, y₀) = (2, 0.0001) · GD · α = 0.1 · 150 steps',
+    options: ['Still at the saddle (0, 0)', 'Minimum (0, 1)', 'Minimum (0, −1)', 'It diverges'], answer: 1,
+    run: () => { apply2({ x0: 2, y0: 0.0001, alpha: 0.1, steps: 150, method: 'gd', eps: 0.01, del: 0.1 }); return run2(); },
+    explain: () => 'Near y = 0, the y-update is y ← y − α(y³ − y) ≈ (1 + α)y, so y grows by 10% per step. Starting from 10<sup>−4</sup>, it needs about ln(10<sup>4</sup>)/ln(1.1) ≈ 97 steps to reach size 1. GD escapes, but the readout shows many steps spent near the saddle. This slow escape is the problem described on slide 14.' },
+  { title: "Newton's method", q: "Newton's method (step 1) starts at (1.5, 0.3). Where does it converge?", setup: '(x₀, y₀) = (1.5, 0.3) · Newton · α = 1 · 30 steps',
+    options: ['Minimum (0, 1)', 'Saddle (0, 0)', 'Minimum (0, −1)', 'It diverges'], answer: 1,
+    run: () => { apply2({ x0: 1.5, y0: 0.3, alpha: 1, steps: 30, method: 'newton', eps: 0.01, del: 0.1 }); return run2(); },
+    explain: () => 'At the start the Hessian is diag(1, 3·0.09 − 1) = diag(1, −0.73), and ∂f/∂y = 0.027 − 0.3 = −0.273. Newton divides by −0.73: Δy = −(−0.273)/(−0.73) = −0.374, so y moves from 0.3 to −0.074, toward the saddle. Along y the function curves downward there, so this step goes uphill. Newton converges to the nearest critical point of any type.' },
+  { title: 'Saddle-free Newton', q: 'Saddle-free Newton (step 1) starts at (1.5, 0.3). Where does it converge?', setup: '(x₀, y₀) = (1.5, 0.3) · saddle-free Newton · α = 1 · 30 steps',
+    options: ['Minimum (0, 1)', 'Saddle (0, 0)', 'Minimum (0, −1)', 'It diverges'], answer: 0,
+    run: () => { apply2({ x0: 1.5, y0: 0.3, alpha: 1, steps: 30, method: 'sfn', eps: 0.01, del: 0.1 }); return run2(); },
+    explain: () => 'Saddle-free Newton divides by |λ| instead of λ: Δy = −(−0.273)/0.73 = +0.374, so y moves from 0.3 to 0.674, downhill and away from the saddle. Every step is a descent direction, and the method converges to the minimum (0, 1). (This demo uses max(|λ|, 0.1) to avoid dividing by a value near zero.)' },
+  { title: 'Perturbed gradient descent', q: 'Perturbed GD starts on the stable line at (2, 0) with α = 0.1, kick radius R = 0.5 and ε = 0.01. Where does it end?', setup: '(x₀, y₀) = (2, 0) · perturbed GD · α = 0.1 · R = 0.5 · ε = 0.01 · up to 300 steps',
+    options: ['At the saddle (0, 0)', 'Near one of the minima; which one is random', 'It diverges', 'Exactly at (0, 1) every time'], answer: 1,
+    run: () => { apply2({ x0: 2, y0: 0, alpha: 0.1, R: 0.5, steps: 300, method: 'pgd', eps: 0.01, del: 0.1 }); return run2(); },
+    explain: () => 'GD first slides along y = 0 toward the saddle. There ‖∇f‖ drops below ε, so the method adds a random kick. The y-part of the kick grows by the factor 1 + α per step, and the iterate falls toward (0, 1) or (0, −1), depending on the sign of the kick. At the minimum the gradient is small again, so it kicks once more; f does not decrease after that kick, so the method stops and returns the point before the kick. That point passes both (ε, δ) tests. Press Run several times to see both minima. Rarely, a kick is so small that f barely decreases and the method stops at the saddle; the guarantee of Jin et al. holds with high probability, not always.' },
+]);
+
+/* ---------- 3. Drill ---------- */
+const D = { c: 0, n: 0, s: 0, cur: null };
+const ri = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const fmtSigned = v => (v < 0 ? '− ' + num(-v) : '+ ' + num(v));
+const HCLS = ['Strict local minimum (H positive definite)', 'Strict local maximum (H negative definite)', 'Saddle point (H indefinite)', 'Second-order test inconclusive (H singular)'];
+function classifyH(a, b, c) { const det = a * c - b * b, tr = a + c; if (det < 0) return 2; if (det === 0) return 3; return tr > 0 ? 0 : 1; }
+function eigSym(a, b, c) { const tr = a + c, det = a * c - b * b, disc = Math.sqrt(Math.max(0, tr * tr - 4 * det)); return [(tr - disc) / 2, (tr + disc) / 2]; }
+function hessExplain(a, b, c) {
+  const tr = a + c, det = a * c - b * b, [l1, l2] = eigSym(a, b, c), k = classifyH(a, b, c);
+  const rule = ['det > 0 and trace > 0, so both eigenvalues are positive.', 'det > 0 and trace < 0, so both eigenvalues are negative.', 'det < 0, so the eigenvalues have opposite signs.', 'det = 0, so one eigenvalue is 0. The second-order test cannot decide; higher-order terms matter.'][k];
+  return `trace = ${num(tr)}, det = ${num(a)}·${num(c)} − ${b < 0 ? '(' + num(b) + ')' : num(b)}² = ${num(det)}. Eigenvalues λ = (trace ± √(trace² − 4·det))/2 = ${num(l1, 3)} and ${num(l2, 3)}. ${rule}`;
+}
+const GEN = {
+  hess() {
+    const want = ri(0, 3); let a, b, c, t = 0;
+    do { a = ri(-4, 4); b = ri(-3, 3); c = ri(-4, 4); t++; } while ((classifyH(a, b, c) !== want || (a === 0 && b === 0 && c === 0)) && t < 20000);
+    return { type: 'mc', prompt: `At a point ${V('x')}* with ∇${V('f')}(${V('x')}*) = 0, the Hessian is ${mat([[num(a), num(b)], [num(b), num(c)]])}. Classify ${V('x')}*.`, options: HCLS, answer: classifyH(a, b, c), explain: hessExplain(a, b, c) };
+  },
+  poly() {
+    const p = pick([1, 4, 9]), q = pick([-2, -1, 1, 2]), sg = pick([1, -1]), r = Math.sqrt(p), x = sg * r;
+    const h1 = 6 * x, h2 = 2 * q, k = classifyH(h1, 0, h2);
+    return { type: 'mc', prompt: `Let ${V('f')}(${V('x')}, ${V('y')}) = ${V('x')}³ − ${num(3 * p)}${V('x')} ${q < 0 ? '−' : '+'} ${Math.abs(q) === 1 ? '' : num(Math.abs(q))}${V('y')}². Classify the critical point (${num(x)}, 0).`,
+      options: HCLS, answer: k,
+      explain: `∇f = (3x² − ${num(3 * p)}, ${num(2 * q)}y), which is zero at x = ±${num(r)}, y = 0. The Hessian is diag(6x, ${num(2 * q)}); at (${num(x)}, 0) it is diag(${num(h1)}, ${num(h2)}). ${k === 0 ? 'Both eigenvalues are positive: a strict local minimum.' : k === 1 ? 'Both eigenvalues are negative: a strict local maximum.' : 'The eigenvalues have opposite signs: a saddle point.'}` };
+  },
+  sosp() {
+    const eps = pick([1e-3, 1e-2, 0.05]), del = pick([0.01, 0.1, 0.5]), want = ri(0, 3);
+    const okG = want === 0 || want === 2, okH = want === 0 || want === 1;
+    const gn = eps * (okG ? pick([0.2, 0.5, 0.9]) : pick([1.5, 3, 10]));
+    const lmin = okH ? pick([-0.5 * del, -0.2 * del, 0, 0.4]) : pick([-2 * del, -5 * del, -1.5 * del]);
+    const lmax = pick([1, 2.5, 4]);
+    const opts = ['Yes, x is an (ε, δ)-second-order stationary point', 'No: the first-order condition fails (only)', 'No: the second-order condition fails (only)', 'No: both conditions fail'];
+    const ans = okG && okH ? 0 : (!okG && okH ? 1 : (okG && !okH ? 2 : 3));
+    return { type: 'mc', prompt: `ε = ${num(eps)}, δ = ${num(del)}. At a point ${V('x')}, ‖∇${V('f')}(${V('x')})‖ = ${num(gn, 5)} and the Hessian has eigenvalues ${num(lmin, 4)} and ${num(lmax)}. Is ${V('x')} an (ε, δ)-second-order stationary point?`,
+      options: opts, answer: ans,
+      explain: `First-order: is ${num(gn, 5)} ≤ ${num(eps)}? ${okG ? 'Yes.' : 'No.'} Second-order: ∇²f ⪰ −δI means λ<sub>min</sub> ≥ −δ; is ${num(lmin, 4)} ≥ ${num(-del)}? ${okH ? 'Yes.' : 'No.'} Both must hold.` };
+  },
+  gd() {
+    const a = pick([1, 2, 3, 4]), b = pick([-2, -1, 1, 2, 3]), al = pick([0.1, 0.2, 0.25, 0.5]);
+    const x0 = pick([-3, -2, -1, 1, 2, 3, 0.5, -0.5, 1.5]), y0 = pick([-2, -1, 1, 2, 0.5, -1.5, 3]);
+    const x1 = x0 * (1 - al * a), y1 = y0 * (1 - al * b);
+    const term = (c, v) => `${c === 1 ? '' : c === -1 ? '−' : num(c)}${V(v)}²`;
+    return { type: 'num2', prompt: `Let ${V('f')}(${V('x')}, ${V('y')}) = ½(${term(a, 'x')} ${b < 0 ? '−' : '+'} ${term(Math.abs(b), 'y')}). Starting from (${num(x0)}, ${num(y0)}), compute one gradient-descent step with α = ${num(al)}.`,
+      answer: [x1, y1],
+      explain: `∇f = (${num(a)}x, ${num(b)}y) = (${num(a * x0)}, ${num(b * y0)}) at the start. x₁ = ${num(x0)} − ${num(al)}·${num(a * x0)} = ${num(x1, 4)}; y₁ = ${num(y0)} − ${num(al)}·${num(b * y0)} = ${num(y1, 4)}. Each coordinate is multiplied by (1 − α·curvature): ${num(1 - al * a, 3)} and ${num(1 - al * b, 3)}.${b < 0 ? ' The y-curvature is negative, so |y| grows: the origin is a saddle and GD moves away from it along y.' : ''}${Math.abs(1 - al * a) > 1 || Math.abs(1 - al * b) > 1 ? ' A factor with absolute value above 1 means that coordinate grows in size.' : ''}` };
+  },
+  newton() {
+    let l1, l2, g1, g2v, dot;
+    do { l1 = pick([1, 2, 4, 0.5]); l2 = pick([-1, -2, -0.5, 1, 3]); g1 = ri(-3, 3); g2v = ri(-3, 3); dot = -(g1 * g1 / l1 + g2v * g2v / l2); } while (g1 === 0 || g2v === 0 || Math.abs(dot) < 0.1);
+    const ans = dot < 0 ? 0 : 1; const sfn = -(g1 * g1 / Math.abs(l1) + g2v * g2v / Math.abs(l2));
+    return { type: 'mc', prompt: `At a point with gradient ${V('g')} = (${num(g1)}, ${num(g2v)}), the Hessian is ${mat([[num(l1), '0'], ['0', num(l2)]])}. Is the Newton step Δ = −H⁻¹${V('g')} a descent direction, that is, is ${V('g')}ᵀΔ < 0?`,
+      options: ['Yes, gᵀΔ < 0', 'No, gᵀΔ > 0'], answer: ans,
+      explain: `Δ = (−${num(g1)}/${num(l1)}, −${num(g2v)}/${num(l2)}) = (${num(-g1 / l1, 3)}, ${num(-g2v / l2, 3)}). gᵀΔ = −(g₁²/λ₁ + g₂²/λ₂) = −(${num(g1 * g1 / l1, 3)} ${fmtSigned(g2v * g2v / l2)}) = ${num(dot, 3)}. ${l2 < 0 ? 'The negative eigenvalue contributes a term with the wrong sign, so Newton can move uphill.' : 'Both eigenvalues are positive, so the Newton step is always a descent direction here.'} Saddle-free Newton uses |λ|: gᵀΔ = ${num(sfn, 3)}, which is always negative.` };
+  },
+};
+function newProblem() {
+  const t = $('#dtype').value; const type = t === 'all' ? pick(Object.keys(GEN)) : t;
+  const p = GEN[type](); D.cur = p; $('#dprompt').innerHTML = p.prompt; $('#dfb').innerHTML = '';
+  if (p.type === 'mc') {
+    $('#dans').innerHTML = `<div class="opts">${p.options.map((o, i) => `<button class="opt" data-i="${i}" id="dopt${i}">${o}</button>`).join('')}</div>`;
+    $$('#dans .opt').forEach(b => b.addEventListener('click', () => { const i = +b.dataset.i; $$('#dans .opt').forEach(x => { x.disabled = true; const k = +x.dataset.i; if (k === p.answer) x.classList.add('right'); else if (k === i) x.classList.add('wrong'); }); grade(i === p.answer, p.explain); }));
+  } else {
+    $('#dans').innerHTML = `<div class="numin"><div class="ctl"><label for="dx1">x₁</label><input type="number" id="dx1" step="any"></div><div class="ctl"><label for="dy1">y₁</label><input type="number" id="dy1" step="any"></div><button class="btn" id="dcheck">Check</button></div>`;
+    $('#dcheck').addEventListener('click', () => {
+      const a = parseFloat($('#dx1').value), b = parseFloat($('#dy1').value);
+      if (!isFinite(a) || !isFinite(b)) { $('#dfb').innerHTML = '<div class="fb">Enter a number in both boxes.</div>'; return; }
+      const ok = Math.abs(a - p.answer[0]) <= 0.005 + 1e-3 * Math.abs(p.answer[0]) && Math.abs(b - p.answer[1]) <= 0.005 + 1e-3 * Math.abs(p.answer[1]);
+      $('#dcheck').disabled = true; grade(ok, `Answer: (${num(p.answer[0], 4)}, ${num(p.answer[1], 4)}). ` + p.explain);
+    });
+  }
+}
+function grade(ok, explain) {
+  D.n++; if (ok) { D.c++; D.s++; } else D.s = 0;
+  $('#sc-c').textContent = D.c; $('#sc-n').textContent = D.n; $('#sc-s').textContent = D.s;
+  $('#dfb').innerHTML = `<div class="fb"><strong class="${ok ? 'ok' : 'no'}">${ok ? 'Correct.' : 'Not quite.'}</strong><span>${explain}</span></div>`;
+}
+$('#dnext').addEventListener('click', newProblem);
+$('#dtype').addEventListener('change', newProblem);
+
+/* ---------- 4. Bayesian optimization ---------- */
+const fS = x => 0.45 * Math.sin(2 * Math.PI * 1.15 * x + 0.6) + 0.75 * Math.exp(-(((x - 0.78) / 0.07) ** 2)) - 0.1;
+const fR = x => fS(x) + 0.22 * Math.sin(2 * Math.PI * 9.3 * x) + 0.12 * Math.sin(2 * Math.PI * 21.7 * x + 1.3);
+const GRID = Array.from({ length: 401 }, (_, i) => i / 400);
+const SF2 = 0.64, INIT = [0.1, 0.4, 0.9];
+const S4 = { obj: 'smooth', ell: 0.1, kappa: 2, X: [], Y: [], showTrue: true, last: null };
+const fobj = () => (S4.obj === 'smooth' ? fS : fR);
+function trueMax(f) { let m = -Infinity, xm = 0; for (let i = 0; i <= 4000; i++) { const x = i / 4000, v = f(x); if (v > m) { m = v; xm = x; } } return { m, xm }; }
+const TM = { smooth: trueMax(fS), rough: trueMax(fR) };
+function chol(A) { const n = A.length, L = Array.from({ length: n }, () => new Float64Array(n)); for (let i = 0; i < n; i++) for (let j = 0; j <= i; j++) { let s = A[i][j]; for (let k = 0; k < j; k++) s -= L[i][k] * L[j][k]; if (i === j) L[i][i] = Math.sqrt(Math.max(s, 1e-12)); else L[i][j] = s / L[j][j]; } return L; }
+function fwd(L, b) { const n = b.length, y = new Float64Array(n); for (let i = 0; i < n; i++) { let s = b[i]; for (let k = 0; k < i; k++) s -= L[i][k] * y[k]; y[i] = s / L[i][i]; } return y; }
+function bwd(L, y) { const n = y.length, x = new Float64Array(n); for (let i = n - 1; i >= 0; i--) { let s = y[i]; for (let k = i + 1; k < n; k++) s -= L[k][i] * x[k]; x[i] = s / L[i][i]; } return x; }
+const kern = (a, b, ell) => SF2 * Math.exp(-((a - b) ** 2) / (2 * ell * ell));
+function gpPosterior(X, Y, ell) {
+  const n = X.length; const K = X.map((a, i) => X.map((b, j) => kern(a, b, ell) + (i === j ? 1e-6 : 0)));
+  const L = chol(K), alpha = bwd(L, fwd(L, Y));
+  const mu = new Float64Array(GRID.length), sd = new Float64Array(GRID.length);
+  for (let g = 0; g < GRID.length; g++) {
+    const ks = X.map(a => kern(GRID[g], a, ell)); let m = 0; for (let i = 0; i < n; i++) m += ks[i] * alpha[i];
+    const v = fwd(L, ks); let q = 0; for (let i = 0; i < n; i++) q += v[i] * v[i];
+    mu[g] = m; sd[g] = Math.sqrt(Math.max(SF2 - q, 1e-12));
+  }
+  return { mu, sd };
+}
+function nextPoint(post) { let best = -Infinity, bi = 0; for (let g = 0; g < GRID.length; g++) { const u = post.mu[g] + S4.kappa * post.sd[g]; if (u > best) { best = u; bi = g; } } return GRID[bi]; }
+function reset4() { const f = fobj(); S4.X = INIT.slice(); S4.Y = S4.X.map(f); S4.last = null; render4(); }
+function step4(k = 1) { const f = fobj(); for (let i = 0; i < k; i++) { const post = gpPosterior(S4.X, S4.Y, S4.ell); const xn = nextPoint(post); S4.last = { x: xn, repeat: S4.X.some(a => Math.abs(a - xn) < 1e-9) }; S4.X.push(xn); S4.Y.push(f(xn)); } render4(); }
+function gridBest(f, n) { let m = -Infinity; for (let i = 0; i < n; i++) m = Math.max(m, f((i + 0.5) / n)); return m; }
+function errors4() { const f = fobj(), tm = TM[S4.obj].m; const bo = [], gr = []; let b = -Infinity; S4.Y.forEach((y, i) => { b = Math.max(b, y); bo.push(tm - b); gr.push(tm - gridBest(f, i + 1)); }); return { bo, gr }; }
+function render4() {
+  const f = fobj(), post = gpPosterior(S4.X, S4.Y, S4.ell);
+  const cv = $('#cv4'); const { ctx, w, h } = prepCanvas(cv);
+  const split = 0.72; const sTop = scale(w, h * split, { l: 40, r: 12, t: 14, b: 8 }, [0, 1], [-1.6, 2.0]);
+  const sBot = scale(w, h, { l: 40, r: 12, t: h * split + 6, b: 24 }, [0, 1], [0, 1]);
+  const ink = cssv('--ink'), plum = cssv('--plum'), good = cssv('--good'), accent = cssv('--accent'), muted = cssv('--muted');
+  axes(ctx, sTop, [], [-1, 0, 1, 2], { yl: 'f(x)' });
+  ctx.save(); ctx.beginPath(); ctx.rect(sTop.L, sTop.T, sTop.R - sTop.L, sTop.B - sTop.T); ctx.clip();
+  ctx.fillStyle = rgba(plum, 0.22); ctx.beginPath();
+  GRID.forEach((x, i) => { const px = sTop.X(x), py = sTop.Y(post.mu[i] + 2 * post.sd[i]); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); });
+  for (let i = GRID.length - 1; i >= 0; i--) ctx.lineTo(sTop.X(GRID[i]), sTop.Y(post.mu[i] - 2 * post.sd[i]));
+  ctx.closePath(); ctx.fill();
+  if (S4.showTrue) { ctx.setLineDash([5, 4]); ctx.strokeStyle = muted; ctx.lineWidth = 1.5; ctx.beginPath(); for (let i = 0; i <= 500; i++) { const x = i / 500, px = sTop.X(x), py = sTop.Y(f(x)); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.stroke(); ctx.setLineDash([]); }
+  ctx.strokeStyle = ink; ctx.lineWidth = 2; ctx.beginPath(); GRID.forEach((x, i) => { const px = sTop.X(x), py = sTop.Y(post.mu[i]); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }); ctx.stroke();
+  S4.X.forEach((x, i) => { const isLast = S4.last && i === S4.X.length - 1; ctx.fillStyle = isLast ? accent : ink; ctx.beginPath(); ctx.arc(sTop.X(x), sTop.Y(S4.Y[i]), isLast ? 5.5 : 4, 0, 7); ctx.fill(); });
+  ctx.restore();
+  // acquisition
+  const acq = GRID.map((_, i) => post.mu[i] + S4.kappa * post.sd[i]); const amin = Math.min(...acq), amax = Math.max(...acq), rng = Math.max(1e-9, amax - amin);
+  ctx.save(); ctx.strokeStyle = rgba(ink, 0.35); ctx.strokeRect(sBot.L, sBot.T, sBot.R - sBot.L, sBot.B - sBot.T);
+  ctx.fillStyle = rgba(good, 0.18); ctx.strokeStyle = good; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(sBot.X(0), sBot.B);
+  GRID.forEach((x, i) => ctx.lineTo(sBot.X(x), sBot.Y(0.05 + 0.85 * (acq[i] - amin) / rng))); ctx.lineTo(sBot.X(1), sBot.B); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); GRID.forEach((x, i) => { const px = sBot.X(x), py = sBot.Y(0.05 + 0.85 * (acq[i] - amin) / rng); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }); ctx.stroke();
+  const xn = nextPoint(post), pxn = sBot.X(xn); ctx.fillStyle = accent; ctx.beginPath(); ctx.moveTo(pxn, sBot.T + 4); ctx.lineTo(pxn - 6, sBot.T - 6); ctx.lineTo(pxn + 6, sBot.T - 6); ctx.closePath(); ctx.fill();
+  ctx.font = '11px ' + cssv('--font-mono'); const lab = 'acquisition μ + κσ · ▼ next point', lw = ctx.measureText(lab).width; ctx.fillStyle = rgba(cssv('--panel'), 0.85); ctx.fillRect(sBot.R - lw - 12, sBot.T + 6, lw + 8, 16); ctx.fillStyle = muted; ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.fillText(lab, sBot.R - 8, sBot.T + 8);
+  [0, 0.2, 0.4, 0.6, 0.8, 1].forEach(x => { ctx.textAlign = 'center'; ctx.fillText(minus(x), sBot.X(x), sBot.B + 5); });
+  ctx.restore();
+  // errors chart
+  const E = errors4(); const cvb = $('#cv4b'); const B = prepCanvas(cvb);
+  const N = Math.max(15, E.bo.length), ymax = Math.max(0.1, ...E.bo, ...E.gr) * 1.08;
+  const sE = scale(B.w, B.h, { l: 40, r: 12, t: 16, b: 24 }, [1, N], [0, ymax]);
+  const step = ymax > 0.6 ? 0.2 : 0.1, yt = []; for (let v = 0; v <= ymax + 1e-9; v += step) yt.push(+v.toFixed(2));
+  const xt = []; for (let k = 1; k <= N; k += (N > 20 ? 5 : 2)) xt.push(k);
+  axes(B.ctx, sE, xt, yt, { yl: 'error = true max − best found', xl: 'evaluations' });
+  [[E.gr, cssv('--teal')], [E.bo, accent]].forEach(([arr, col]) => { const c = B.ctx; c.strokeStyle = col; c.lineWidth = 2; c.beginPath(); arr.forEach((v, i) => { const px = sE.X(i + 1), py = sE.Y(v); i ? c.lineTo(px, py) : c.moveTo(px, py); }); c.stroke(); arr.forEach((v, i) => { c.fillStyle = col; c.beginPath(); c.arc(sE.X(i + 1), sE.Y(v), i === arr.length - 1 ? 4 : 2.2, 0, 7); c.fill(); }); });
+  // readout
+  const n = S4.X.length, bestBO = Math.max(...S4.Y), tm = TM[S4.obj];
+  $('#kv4').innerHTML = `<dt>evaluations</dt><dd>${n}</dd><dt>true maximum</dt><dd>${num(tm.m, 3)} at x = ${num(tm.xm, 3)}</dd><dt>best found by BO</dt><dd>${num(bestBO, 3)}</dd><dt>BO error</dt><dd>${num(E.bo[n - 1], 3)}</dd><dt>grid search error, ${n} points</dt><dd>${num(E.gr[n - 1], 3)}</dd><dt>next point</dt><dd>x = ${num(xn, 3)}</dd>`;
+  const lead = E.bo[n - 1] < E.gr[n - 1] - 1e-9 ? 'Bayesian optimization is ahead.' : E.bo[n - 1] > E.gr[n - 1] + 1e-9 ? 'Grid search is ahead.' : 'The two methods are tied.';
+  $('#out4').innerHTML = (S4.last && S4.last.repeat ? '<span class="chip warn">Repeated a point</span> <p style="margin-top:8px">The acquisition maximum is at a point already evaluated, so nothing new is learned. With κ = 0 this means pure exploitation is stuck.</p>' : `<p>${lead}</p>`);
+}
+const ui4 = {
+  ell: bindRange('ell4', v => num(v, 2), v => { S4.ell = v; render4(); }),
+  kap: bindRange('kap4', v => num(v, 1), v => { S4.kappa = v; render4(); }),
+};
+$$('input[name="obj4"]').forEach(r => r.addEventListener('change', () => { S4.obj = r.value; reset4(); }));
+$('#tru4').addEventListener('change', e => { S4.showTrue = e.target.checked; render4(); });
+$('#next4').addEventListener('click', () => step4(1));
+$('#five4').addEventListener('click', () => step4(5));
+$('#reset4').addEventListener('click', reset4);
+function apply4(cfg) { Object.assign(S4, cfg); ui4.ell.set(S4.ell); ui4.kap.set(S4.kappa); $('#obj4-' + (S4.obj === 'smooth' ? 's' : 'r')).checked = true; }
+function runTo(n) { reset4(); const k = n - S4.X.length; if (k > 0) step4(k); return errors4(); }
+buildCards($('#pc4'), [
+  { title: 'Smooth objective', q: 'Smooth objective, ℓ = 0.1, κ = 2. After 10 evaluations, which method has the smaller error?', setup: 'smooth · ℓ = 0.10 · κ = 2 · 10 evaluations',
+    options: ['Bayesian optimization', 'Grid search', 'They are equal'], answer: 0,
+    run: () => { apply4({ obj: 'smooth', ell: 0.1, kappa: 2 }); return runTo(10); },
+    explain: E => `After 10 evaluations the BO error is ${num(E.bo[9], 3)} and the grid search error is ${num(E.gr[9], 3)}. The GP model fits a smooth function well, so BO spends its evaluations near promising regions instead of covering [0, 1] evenly.` },
+  { title: 'No exploration', q: 'Same objective, but κ = 0, so the acquisition is just the GP mean. What happens in 10 evaluations?', setup: 'smooth · ℓ = 0.10 · κ = 0 · 10 evaluations',
+    options: ['It finds the global maximum quickly', 'It keeps sampling near x ≈ 0.13 and misses the global maximum', 'It samples uniformly like grid search'], answer: 1,
+    run: () => { apply4({ obj: 'smooth', ell: 0.1, kappa: 0 }); return runTo(10); },
+    explain: E => `With κ = 0 the method only exploits: it samples where the mean is highest, which is next to the best point seen so far. It settles on the local maximum near x ≈ 0.13 and its error stays at ${num(E.bo[9], 3)}. The κσ term is what sends BO to unexplored regions.` },
+  { title: 'Rough objective', q: 'Switch to the rough objective, ℓ = 0.1, κ = 2. After 15 evaluations, which method has the smaller error?', setup: 'rough · ℓ = 0.10 · κ = 2 · 15 evaluations',
+    options: ['Bayesian optimization', 'Grid search', 'They are equal'], answer: 1,
+    run: () => { apply4({ obj: 'rough', ell: 0.1, kappa: 2 }); return runTo(15); },
+    explain: E => `BO error ${num(E.bo[14], 3)}, grid search error ${num(E.gr[14], 3)}. The rough function has fast oscillations that a GP with ℓ = 0.1 treats as smooth, so its predictions mislead the search. This is slide 57: with low smoothness BO can be worse than grid search. Now set ℓ = 0.03, press Reset, then use Run 5 more and Next evaluation until there are 15 evaluations: a model that matches the roughness recovers the advantage.` },
+]);
+
+/* ---------- 5. Knowledge check ---------- */
+const QUIZ = [
+  { p: 'Let f be convex and differentiable. If ∇f(x) = 0, then:', o: ['x is a global minimizer of f', 'x is a local minimizer, but possibly not global', 'x may be a saddle point', 'nothing can be concluded'], a: 0,
+    e: 'For convex f, f(y) ≥ f(x) + ⟨∇f(x), y − x⟩ = f(x) for every y when ∇f(x) = 0. So x is a global minimizer (slide 30).' },
+  { p: 'For f(x, y) = x² − y², the origin is:', o: ['a saddle point', 'a local minimum', 'a local maximum', 'not a critical point'], a: 0,
+    e: '∇f = (2x, −2y) = 0 at the origin. The Hessian is diag(2, −2), which has eigenvalues of both signs, so the origin is a saddle.' },
+  { p: `At a stationary point the Hessian is ${mat([['2', '3'], ['3', '2']])}. The point is:`, o: ['a saddle point', 'a strict local minimum', 'a strict local maximum', 'inconclusive'], a: 0,
+    e: 'trace = 4, det = 4 − 9 = −5 < 0, so the eigenvalues have opposite signs (they are 5 and −1). The point is a saddle.' },
+  { p: 'Which pair of conditions defines a second-order stationary point x (the lecture\'s "second-order local minimum")?', o: ['∇f(x) = 0 and ∇²f(x) ⪰ 0', '∇f(x) = 0 and ∇²f(x) ≺ 0', '∇²f(x) ⪰ 0 only', '‖∇f(x)‖ ≤ ε only'], a: 0,
+    e: 'Zero gradient (first order) and a positive semidefinite Hessian (second order): every eigenvalue of the Hessian is ≥ 0 (slide 36).' },
+  { p: 'Let ε = 0.01 and δ = 0.1. At a point x, ‖∇f(x)‖ = 0.004 and the Hessian eigenvalues are 3.0 and −0.05. Is x an (ε, δ)-second-order stationary point?', o: ['Yes', 'No, the first-order condition fails', 'No, the second-order condition fails', 'No, both fail'], a: 0,
+    e: '0.004 ≤ 0.01, and λ<sub>min</sub> = −0.05 ≥ −δ = −0.1. Both conditions hold. A slightly negative eigenvalue is allowed up to −δ.' },
+  { p: 'For f(x) = x³ at x = 0, which statement is true?', o: ['It satisfies ∇f = 0 and ∇²f ⪰ 0, but it is not a local minimum', 'It is a strict local minimum', 'It is a strict saddle point with a negative Hessian eigenvalue', 'It is a local maximum'], a: 0,
+    e: 'f′(0) = 0 and f″(0) = 0 ⪰ 0, so the second-order conditions hold. Yet f(x) < 0 for x < 0, so 0 is not a local minimum. The second-order conditions are necessary, not sufficient, when the Hessian is singular.' },
+  { num: true, p: 'f is β-smooth with β = 4. One gradient step with step size 1/β is taken from a point where ‖∇f(x)‖ = 2. By the smoothness upper bound, f decreases by at least how much?', a: 0.5, tol: 0.005,
+    e: 'Substituting y = x − ∇f(x)/β into f(y) ≤ f(x) + ⟨∇f(x), y − x⟩ + (β/2)‖y − x‖² gives f(y) ≤ f(x) − ‖∇f(x)‖²/(2β) = f(x) − 4/8. The guaranteed decrease is 0.5.' },
+  { p: 'Near a saddle point, Newton\'s method x ← x − ∇²f(x)⁻¹∇f(x) can fail because:', o: ['along a direction with a negative eigenvalue it divides by a negative number and moves uphill, so it is attracted to the saddle', 'it ignores second-order information', 'its step size is always too small', 'the Hessian is always singular at a saddle'], a: 0,
+    e: 'In the Hessian\'s eigenbasis, Newton divides each gradient component by its eigenvalue. A negative eigenvalue flips the sign of that component of the step. Saddle-free Newton divides by |λ| instead (slide 47).' },
+  { p: 'Plain gradient descent on f(x, y) = ½x² − ½y² starts at (1, 0) with α = 0.1. Where does it converge?', o: ['To the saddle point (0, 0)', 'It escapes along y to −∞', 'It oscillates forever', 'It stays at (1, 0)'], a: 0,
+    e: 'The y-component of the gradient is −y = 0, so y stays exactly 0, and x is multiplied by 0.9 each step. GD converges to the saddle. Any tiny nonzero y would grow, which is why random perturbations help.' },
+  { num: true, p: 'Same function f(x, y) = ½x² − ½y² and α = 0.1. By what factor is the y-coordinate multiplied at each gradient-descent step?', a: 1.1, tol: 0.001,
+    e: 'y ← y − α·(−y) = (1 + α)y = 1.1y. Along a negative-curvature direction with eigenvalue λ < 0, each step multiplies the coordinate by 1 + α|λ| > 1, so noise grows geometrically and the iterate leaves the saddle.' },
+  { p: 'In matrix completion, rewriting X = YYᵀ with Y ∈ ℝ<sup>n×p</sup>:', o: ['removes the rank and PSD constraints, but makes the objective non-convex in Y', 'makes the problem convex', 'adds a rank constraint', 'requires the full matrix to be observed'], a: 0,
+    e: 'YYᵀ is automatically PSD with rank at most p. The objective is non-convex in Y: Y and −Y give the same X, while their midpoint 0 does not (slides 49–50).' },
+  { p: 'In Bayesian optimization, the acquisition function balances:', o: ['exploitation (high predicted value) and exploration (high uncertainty)', 'step size and momentum', 'the gradient and the Hessian', 'training and test error'], a: 0,
+    e: 'For example, the upper confidence bound μ(x) + κσ(x) rewards a high mean and a large uncertainty (slide 56).' },
+  { p: 'Grid search error is O(1/t<sup>1/d</sup>) and Bayesian optimization error is O(1/t<sup>ν/d</sup>), where ν measures smoothness. When is Bayesian optimization\'s advantage largest?', o: ['When the objective is very smooth (large ν)', 'When the objective is rough (small ν)', 'When d is very large', 'It does not depend on smoothness'], a: 0,
+    e: 'A larger ν gives a faster rate t<sup>−ν/d</sup>. For rough objectives (small ν) BO can even be slower than grid search in practice (slides 57–59).' },
+  { p: 'Why is the training loss of a neural network with one hidden layer non-convex?', o: ['Permuting hidden units gives the same function, so minimizers come in separate copies whose midpoint is usually worse', 'Because the squared loss is non-convex', 'Because the data matrix is not invertible', 'It is convex; only deep networks are non-convex'], a: 0,
+    e: 'For a convex function the set of minimizers is convex, so the midpoint of two minimizers would also be a minimizer. Permutation symmetry produces distinct minimizers whose average is a different, usually worse, network.' },
+];
+let quizOrder = [];
+function renderQuiz(rnd = Math.random) {
+  quizOrder = QUIZ.map(q => (q.num ? null : shuffle(q.o.map((_, i) => i), rnd)));
+  $('#quiz').innerHTML = QUIZ.map((q, qi) => `<div class="card q" id="q${qi}"><div class="qn">Question ${qi + 1} of ${QUIZ.length}</div><div class="qp">${q.p}</div>${q.num ? `<div class="ctl" style="max-width:200px"><label for="q${qi}in">Your answer</label><input type="number" step="any" id="q${qi}in"></div>` : quizOrder[qi].map(oi => `<label class="choice" data-oi="${oi}"><input type="radio" name="q${qi}" value="${oi}" id="q${qi}o${oi}"><span>${q.o[oi]}</span></label>`).join('')}<div class="exp fb"></div></div>`).join('');
+  $('#qresult').classList.add('hide'); $('#qtext').classList.add('hide');
+}
+function submitQuiz() {
+  let score = 0; const lines = [];
+  QUIZ.forEach((q, qi) => {
+    const box = $('#q' + qi); let ok = false, given = '';
+    if (q.num) { const v = parseFloat($(`#q${qi}in`).value); given = isFinite(v) ? String(v) : '(blank)'; ok = isFinite(v) && Math.abs(v - q.a) <= q.tol; }
+    else {
+      const sel = $(`input[name="q${qi}"]:checked`); const oi = sel ? +sel.value : -1; ok = oi === q.a; given = oi >= 0 ? q.o[oi].replace(/<[^>]+>/g, '').slice(0, 70) : '(blank)';
+      $$('label.choice', box).forEach(l => { const k = +l.dataset.oi; l.classList.toggle('right', k === q.a); l.classList.toggle('wrong', k === oi && k !== q.a); });
+    }
+    if (ok) score++;
+    box.classList.add('graded');
+    $('.exp', box).innerHTML = `<strong class="${ok ? 'ok' : 'no'}">${ok ? 'Correct.' : 'Not quite.'}</strong><span>${q.num ? `Answer: ${num(q.a)}. ` : ''}${q.e}</span>`;
+    lines.push(`Q${qi + 1}: ${ok ? 'correct' : 'incorrect'} (answer given: ${given})`);
+  });
+  const name = $('#qname').value.trim() || '(no name)';
+  $('#qscore').textContent = `${score} / ${QUIZ.length}`;
+  $('#qmsg').textContent = score === QUIZ.length ? 'Full marks.' : `Review the explanations under the questions you missed, then retake the check.`;
+  $('#qtext').value = `Lecture 7 knowledge check: non-convex optimization\nName: ${name}\nScore: ${score} / ${QUIZ.length}\nSubmitted: ${new Date().toLocaleString()}\n${lines.join('\n')}`;
+  $('#qresult').classList.remove('hide');
+  $('#qresult').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest' });
+}
+$('#qsubmit').addEventListener('click', submitQuiz);
+$('#qretake').addEventListener('click', () => { renderQuiz(); window.scrollTo({ top: $('#check').offsetTop - 70, behavior: reduceMotion ? 'auto' : 'smooth' }); });
+$('#qcopy').addEventListener('click', async () => {
+  const t = $('#qtext'); try { await navigator.clipboard.writeText(t.value); $('#qcopy').textContent = 'Copied'; setTimeout(() => { $('#qcopy').textContent = 'Copy results'; }, 1800); }
+  catch (e) { t.classList.remove('hide'); t.focus(); t.select(); $('#qcopy').textContent = 'Select the text below and copy it'; }
+});
+
+/* ---------- tabs, resize, theme ---------- */
+const TABS = ['basins', 'saddles', 'drill', 'bayes', 'check'];
+function showTab(id) {
+  if (!TABS.includes(id)) id = 'basins';
+  TABS.forEach(t => { $('#' + t).classList.toggle('on', t === id); $('#tab-' + t).setAttribute('aria-selected', String(t === id)); });
+  redraw(id);
+}
+function redraw(id) { id = id || TABS.find(t => $('#' + t).classList.contains('on')); if (id === 'basins') draw1(); if (id === 'saddles') draw2(); if (id === 'bayes') render4(); }
+TABS.forEach(t => $('#tab-' + t).addEventListener('click', () => { if (location.hash !== '#' + t) location.hash = t; else showTab(t); }));
+window.addEventListener('hashchange', () => showTab(location.hash.slice(1)));
+let rzT = null; window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => redraw(), 120); });
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { heat2 = null; redraw(); });
+new MutationObserver(() => { heat2 = null; redraw(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+/* ---------- initial state ---------- */
+apply1({}); S1.res = simulate1(S1); S1.xs = S1.res.xs; S1.shown = 1; readout1();
+apply2({}); { const r = simulate2(S2); S2.path = r.path; S2.div = r.div; S2.run = r; S2.shown = 1; readout2(); }
+apply4({}); S4.X = INIT.slice(); S4.Y = S4.X.map(fobj());
+newProblem(); renderQuiz();
+showTab(location.hash.slice(1));
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => redraw());
+window.__lab = { simulate1, simulate2, MINS, MAXS, GEN, QUIZ, runTo, apply4, errors4, S4, classifyH };
+</script>
+</body>
+</html>
